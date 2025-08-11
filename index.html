@@ -193,12 +193,12 @@ const TEMPLATES = {
   ]
 };
 
-// Tiny IndexedDB helper
+// IndexedDB helper (workouts, lasts, outbox)
 const DB = (()=>{
   let db;
   function open(){
     return new Promise((res, rej)=>{
-      const req = indexedDB.open('gym-db', 1);
+      const req = indexedDB.open('gym-db', 2);
       req.onupgradeneeded = (e)=>{
         const d = e.target.result;
         if (!d.objectStoreNames.contains('workouts')) d.createObjectStore('workouts', { keyPath: 'id', autoIncrement: true });
@@ -216,7 +216,7 @@ const DB = (()=>{
   async function getLast(name){ await open(); return new Promise((res)=>{ const r = tx('lasts').get(name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
   async function setLast(rec){ await open(); return new Promise((res, rej)=>{ const r = tx('lasts','readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
   async function primeWeightsFor(exs){ await open(); for (const ex of exs){ const last = await new Promise((res)=>{ const r = tx('lasts').get(ex.name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); if (last && last.weight) ex.weight = last.weight; } return exs; }
-  async function updateLastsFromWorkout(w){ await open(); const weights = {}; (w.exercises||[]).forEach(ex=>{ const used = ex.weight || (ex.sets||[]).map(s=>s.weight).find(Boolean); if (used) weights[ex.name]=used; }); await Promise.all(Object.entries(weights).map(([name,weight])=> setLast({ name, weight }))); }
+  async function updateLastsFromWorkout(w){ await open(); const entries = []; (w.exercises||[]).forEach(ex=>{ const used = ex.weight || (ex.sets||[]).map(s=>s.weight).find(Boolean); const reps = (ex.sets||[]).map(s=> (Number.isFinite(s.reps)? s.reps : null)).filter(v=> v!==null); const rec = { name: ex.name, updatedAt: Date.now() }; if (used) rec.weight = used; if (reps.length) rec.reps = reps; entries.push(rec); }); await Promise.all(entries.map(setLast)); }
   async function outboxAdd(item){ await open(); return new Promise((res,rej)=>{ const r = tx('outbox','readwrite').add(item); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
   async function outboxAll(){ await open(); return new Promise((res)=>{ const items=[]; const r = tx('outbox').openCursor(); r.onsuccess=e=>{ const c=e.target.result; if(c){ items.push({ id:c.key, ...c.value }); c.continue(); } else res(items); }; r.onerror=()=>res(items); }); }
   async function outboxRemove(id){ await open(); return new Promise((res)=>{ const r = tx('outbox','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }); }
@@ -353,141 +353,7 @@ const state = {
   $('#addExerciseBtn').addEventListener('click', addExercise);
   $('#warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
 
-  
-  // Template chooser logic
-  async function startFromTemplate(kind){
-    const tpl = kind==='Custom' ? [] : (TEMPLATES[kind] || []);
-    const exercises = await DB.primeWeightsFor(JSON.parse(JSON.stringify(tpl)));
-    state.workout = { name: kind==='Custom' ? 'Mukautettu treeni' : kind, date: new Date().toISOString(), exercises };
-    save(); render();
-  }
-  function openTemplateChooser(){
-    const dlg = $('#templateDialog');
-    dlg.showModal();
-    dlg.querySelectorAll('[data-template]').forEach(btn=>{
-      btn.onclick = async ()=>{ await startFromTemplate(btn.dataset.template); dlg.close(); };
-    });
-    $('#tplClose').onclick = ()=> dlg.close();
-  }
-  $('#saveWorkoutBtn').addEventListener('click', async ()=>{
-    // Local save
-    await DB.saveWorkout(state.workout);
-    await DB.updateLastsFromWorkout(state.workout);
-
-    // Cloud sync (Mongo Atlas via our API)
-    try {
-      let deviceId = localStorage.getItem('deviceId');
-      if (!deviceId) { deviceId = 'dev_' + Math.random().toString(36).slice(2); localStorage.setItem('deviceId', deviceId); }
-      const res = await fetch('/api/workouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
-        body: JSON.stringify(state.workout)
-      });
-      if (!res.ok) throw new Error('Cloud save failed');
-      alert('Treeni tallennettu (paikallisesti + pilveen)!');
-    } catch (e) {
-      console.warn('Cloud save error:', e);
-      await DB.outboxAdd({ type:'workout', payload: state.workout, createdAt: Date.now() });
-      alert('Treeni tallennettu paikallisesti. Pilvitallennus epäonnistui (yritä myöhemmin).');
-    }
-  });
-
-  // Cloud retry on reconnect
-  window.addEventListener('online', async ()=>{
-    const items = await DB.outboxAll();
-    for (const it of items) {
-      if (it.type === 'workout') {
-        try {
-          let deviceId = localStorage.getItem('deviceId');
-          if (!deviceId) { deviceId = 'dev_' + Math.random().toString(36).slice(2); localStorage.setItem('deviceId', deviceId); }
-          const res = await fetch('/api/workouts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
-            body: JSON.stringify(it.payload)
-          });
-          if (res.ok) await DB.outboxRemove(it.id);
-        } catch (e) { /* still offline */ }
-      }
-    }
-  });
-
-  // History (local) + bind open
-  async function openHistory(){
-    const dlg = $('#historyDialog');
-    const list = $('#historyList');
-    list.innerHTML = 'Ladataan...';
-    const items = await DB.listWorkouts();
-    if (!items.length){
-      list.innerHTML = '<div class="card">Ei tallennettuja treenejä vielä.</div>';
-    } else {
-      list.innerHTML = items.map(w=>`
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-          <div>
-            <div style="font-weight:700;">${w.name||'Treeni'}</div>
-            <div class="muted" style="font-size:12px;">${fmtDate(w.date)}</div>
-          </div>
-          <button class="btn" data-open="${w.id}">Avaa</button>
-        </div>
-      `).join('');
-      list.querySelectorAll('[data-open]').forEach(btn=>{
-        btn.onclick = async ()=>{
-          const id = Number(btn.dataset.open);
-          const w = await DB.getWorkout(id);
-          if (!w) return;
-          $('#histDetailTitle').textContent = (w.name||'Treeni') + ' – ' + fmtDate(w.date);
-          const body = $('#histDetailBody');
-          body.innerHTML = (w.exercises||[]).map(ex=>`
-            <article class="card">
-              <div class="ex-name">${ex.name||'Liike'}</div>
-              <div class="pills"> ${(ex.sets||[]).map((s,i)=>`<span class="pill ${Number.isFinite(s.reps)?'done':''}"><div>${Number.isFinite(s.reps)?s.reps:'?'}</div></span>`).join('')} </div>
-              <div class="muted" style="font-size:12px; margin-top:6px;">${(ex.weight||'')} ${ex.repRange?(' · '+ex.repRange):''}</div>
-            </article>
-          `).join('');
-          const csv = workoutToCSV(w);
-          const blob = new Blob([csv], {type:'text/csv'});
-          const url = URL.createObjectURL(blob);
-          const a = $('#histCsvBtn');
-          a.href = url;
-          a.download = (w.name||'Treeni') + ' - ' + (w.date||'') + '.csv';
-          $('#historyDetailDialog').showModal();
-        };
-      });
-    }
-    // Bind cloud fetch
-    $('#loadCloudBtn').onclick = async ()=>{
-      list.innerHTML = 'Ladataan pilvestä...';
-      try {
-        const items = await listCloudWorkouts();
-        renderCloudToHistory(items);
-      } catch (e) {
-        console.warn(e);
-        list.innerHTML = '<div class="card">Pilvihaku epäonnistui.</div>';
-      }
-    };
-    $('#histClose').onclick = ()=> dlg.close();
-    $('#histDetailClose').onclick = ()=> $('#historyDetailDialog').close();
-    dlg.showModal();
-  }
-  $('#historyBtn').addEventListener('click', openHistory);
-
-  // Helpers
-  function fmtDate(iso){
-    try { const d = new Date(iso); return d.toLocaleString([], { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); }
-    catch(e){ return iso || ''; }
-  }
-  function workoutToCSV(w){
-    const rows = [['Päivä', fmtDate(w.date)], ['Nimi', w.name||'Treeni'], []];
-    rows.push(['Liike','Sarja','Toistot','Paino']);
-    (w.exercises||[]).forEach(ex=>{
-      (ex.sets||[]).forEach((s, i)=>{
-        rows.push([ex.name||'', String(i+1), (s.reps??''), (s.weight??ex.weight??'')]);
-      });
-    });
-    return rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
-  }
-
   // Boot
-
   load();
   if (!state.workout.exercises.length){
     openTemplateChooser();
