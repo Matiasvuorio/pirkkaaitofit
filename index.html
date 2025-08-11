@@ -349,14 +349,14 @@ const state = {
   }
 
   // Header actions
-  $('#newWorkoutBtn').addEventListener('click', ()=>{ openTemplateChooser(); });
+  $('#newWorkoutBtn').addEventListener('click', ()=>{ // openTemplateChooser(); // removed: not defined in this build });
   $('#addExerciseBtn').addEventListener('click', addExercise);
   $('#warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
 
   // Boot
   load();
   if (!state.workout.exercises.length){
-    openTemplateChooser();
+    // openTemplateChooser(); // removed: not defined in this build
     state.workout.exercises = [
       { name:'Pystypunnerrus laitteessa', repRange:'12-14', rest:90, weight:'40', sets:[{},{},] },
       { name:'Takakyykky', repRange:'9', rest:90, weight:'55', sets:[{},{},] },
