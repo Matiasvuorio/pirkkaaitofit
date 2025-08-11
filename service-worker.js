@@ -1,6 +1,6 @@
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open('gym-minimal-fi-v4').then(cache => cache.addAll([
+    caches.open('gym-minimal-fi-v99').then(cache => cache.addAll([
       './',
       './index.html',
       './manifest.webmanifest',

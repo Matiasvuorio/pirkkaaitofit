@@ -349,6 +349,7 @@ const state = {
   }
 
   // Header actions
+  document.getElementById('newWorkoutBtn')?.addEventListener('click', ()=> openTemplateChooser());
   $('#newWorkoutBtn').addEventListener('click', ()=>{ // openTemplateChooser(); // removed: not defined in this build });
   $('#addExerciseBtn').addEventListener('click', addExercise);
   $('#warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
