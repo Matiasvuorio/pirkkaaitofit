@@ -113,7 +113,6 @@
     </div>
   </dialog>
 
-  <!-- Set reps picker -->
   <!-- Template chooser -->
   <dialog id="templateDialog">
     <h3 class="ex-name" style="margin:0 0 12px 0;">Valitse treeni</h3>
@@ -167,63 +166,70 @@
   const $$ = s => Array.from(document.querySelectorAll(s));
   const STORAGE_KEY = 'gym-minimal-fi-v2';
 
-  
-// Workout templates
-const TEMPLATES = {
-  Push: [
-    { name:'Penkkipunnerrus tangolla', repRange:'6-10', rest:120, sets:[{},{},{}] },
-    { name:'Vinopenkki käsipainoilla', repRange:'8-12', rest:90, sets:[{},{},{}] },
-    { name:'Pystypunnerrus seisten', repRange:'6-10', rest:90, sets:[{},{},{}] },
-    { name:'Sivuolkapäävipu', repRange:'12-15', rest:60, sets:[{},{},{}] },
-    { name:'Ojentajatalja', repRange:'10-15', rest:60, sets:[{},{},{}] }
-  ],
-  Pull: [
-    { name:'Maastaveto', repRange:'3-5', rest:180, sets:[{},{},{}] },
-    { name:'Leuanveto/ylätalja', repRange:'6-10', rest:120, sets:[{},{},{}] },
-    { name:'Soutu tangolla', repRange:'6-10', rest:90, sets:[{},{},{}] },
-    { name:'Face pull', repRange:'12-15', rest:60, sets:[{},{},{}] },
-    { name:'Hauiskääntö', repRange:'8-12', rest:60, sets:[{},{},{}] }
-  ],
-  Legs: [
-    { name:'Takakyykky', repRange:'5-8', rest:120, sets:[{},{},{}] },
-    { name:'Jalkaprässi', repRange:'10-15', rest:120, sets:[{},{},{}] },
-    { name:'Reidenkoukistus', repRange:'12-15', rest:60, sets:[{},{},{}] },
-    { name:'Reidenojennus', repRange:'12-15', rest:60, sets:[{},{},{}] },
-    { name:'Pohjenousut', repRange:'10-15', rest:60, sets:[{},{},{}] }
-  ]
-};
+  // Workout templates
+  const TEMPLATES = {
+    Push: [
+      { name:'Penkkipunnerrus tangolla', repRange:'6-10', rest:120, sets:[{},{},{}] },
+      { name:'Vinopenkki käsipainoilla', repRange:'8-12', rest:90, sets:[{},{},{}] },
+      { name:'Pystypunnerrus seisten', repRange:'6-10', rest:90, sets:[{},{},{}] },
+      { name:'Sivuolkapäävipu', repRange:'12-15', rest:60, sets:[{},{},{}] },
+      { name:'Ojentajatalja', repRange:'10-15', rest:60, sets:[{},{},{}] }
+    ],
+    Pull: [
+      { name:'Maastaveto', repRange:'3-5', rest:180, sets:[{},{},{}] },
+      { name:'Leuanveto/ylätalja', repRange:'6-10', rest:120, sets:[{},{},{}] },
+      { name:'Soutu tangolla', repRange:'6-10', rest:90, sets:[{},{},{}] },
+      { name:'Face pull', repRange:'12-15', rest:60, sets:[{},{},{}] },
+      { name:'Hauiskääntö', repRange:'8-12', rest:60, sets:[{},{},{}] }
+    ],
+    Legs: [
+      { name:'Takakyykky', repRange:'5-8', rest:120, sets:[{},{},{}] },
+      { name:'Jalkaprässi', repRange:'10-15', rest:120, sets:[{},{},{}] },
+      { name:'Reidenkoukistus', repRange:'12-15', rest:60, sets:[{},{},{}] },
+      { name:'Reidenojennus', repRange:'12-15', rest:60, sets:[{},{},{}] },
+      { name:'Pohjenousut', repRange:'10-15', rest:60, sets:[{},{},{}] }
+    ]
+  };
 
-// IndexedDB helper (workouts, lasts, outbox)
-const DB = (()=>{
-  let db;
-  function open(){
-    return new Promise((res, rej)=>{
-      const req = indexedDB.open('gym-db', 2);
-      req.onupgradeneeded = (e)=>{
-        const d = e.target.result;
-        if (!d.objectStoreNames.contains('workouts')) d.createObjectStore('workouts', { keyPath: 'id', autoIncrement: true });
-        if (!d.objectStoreNames.contains('lasts')) d.createObjectStore('lasts', { keyPath: 'name' });
-        if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', { keyPath: 'id', autoIncrement: true });
-      };
-      req.onsuccess = ()=>{ db = req.result; res(); };
-      req.onerror = ()=> rej(req.error);
-    });
-  }
-  function tx(store, mode='readonly'){ return db.transaction(store, mode).objectStore(store); }
-  async function saveWorkout(w){ await open(); return new Promise((res, rej)=>{ const r = tx('workouts','readwrite').add(w); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-  async function listWorkouts(){ await open(); return new Promise((res)=>{ const out=[]; const r = tx('workouts').openCursor(null,'prev'); r.onsuccess=e=>{const c=e.target.result; if(c){ out.push(c.value); c.continue(); } else res(out);}; r.onerror=()=>res(out); }); }
-  async function getWorkout(id){ await open(); return new Promise((res)=>{ const r=tx('workouts').get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
-  async function getLast(name){ await open(); return new Promise((res)=>{ const r = tx('lasts').get(name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
-  async function setLast(rec){ await open(); return new Promise((res, rej)=>{ const r = tx('lasts','readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
-  async function primeWeightsFor(exs){ await open(); for (const ex of exs){ const last = await new Promise((res)=>{ const r = tx('lasts').get(ex.name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); if (last && last.weight) ex.weight = last.weight; } return exs; }
-  async function updateLastsFromWorkout(w){ await open(); const entries = []; (w.exercises||[]).forEach(ex=>{ const used = ex.weight || (ex.sets||[]).map(s=>s.weight).find(Boolean); const reps = (ex.sets||[]).map(s=> (Number.isFinite(s.reps)? s.reps : null)).filter(v=> v!==null); const rec = { name: ex.name, updatedAt: Date.now() }; if (used) rec.weight = used; if (reps.length) rec.reps = reps; entries.push(rec); }); await Promise.all(entries.map(setLast)); }
-  async function outboxAdd(item){ await open(); return new Promise((res,rej)=>{ const r = tx('outbox','readwrite').add(item); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-  async function outboxAll(){ await open(); return new Promise((res)=>{ const items=[]; const r = tx('outbox').openCursor(); r.onsuccess=e=>{ const c=e.target.result; if(c){ items.push({ id:c.key, ...c.value }); c.continue(); } else res(items); }; r.onerror=()=>res(items); }); }
-  async function outboxRemove(id){ await open(); return new Promise((res)=>{ const r = tx('outbox','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }); }
-  return { open, saveWorkout, listWorkouts, getWorkout, getLast, setLast, primeWeightsFor, updateLastsFromWorkout, outboxAdd, outboxAll, outboxRemove };
-})();
+  // ---- IndexedDB helper (workouts, lasts, outbox) ----
+  const DB = (()=>{
+    let db;
+    function open(){
+      return new Promise((res, rej)=>{
+        const req = indexedDB.open('gym-db', 2);
+        req.onupgradeneeded = (e)=>{
+          const d = e.target.result;
+          if (!d.objectStoreNames.contains('workouts')) d.createObjectStore('workouts', { keyPath: 'id', autoIncrement: true });
+          if (!d.objectStoreNames.contains('lasts')) d.createObjectStore('lasts', { keyPath: 'name' });
+          if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', { keyPath: 'id', autoIncrement: true });
+        };
+        req.onsuccess = ()=>{ db = req.result; res(); };
+        req.onerror = ()=> rej(req.error);
+      });
+    }
+    function tx(store, mode='readonly'){ return db.transaction(store, mode).objectStore(store); }
+    async function saveWorkout(w){ await open(); return new Promise((res, rej)=>{ const r = tx('workouts','readwrite').add(w); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+    async function listWorkouts(){ await open(); return new Promise((res)=>{ const out=[]; const r = tx('workouts').openCursor(null,'prev'); r.onsuccess=e=>{const c=e.target.result; if(c){ out.push(c.value); c.continue(); } else res(out);}; r.onerror=()=>res(out); }); }
+    async function getWorkout(id){ await open(); return new Promise((res)=>{ const r=tx('workouts').get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
+    async function getLast(name){ await open(); return new Promise((res)=>{ const r = tx('lasts').get(name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
+    async function setLast(rec){ await open(); return new Promise((res, rej)=>{ const r = tx('lasts','readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
+    async function primeWeightsFor(exs){ await open(); for (const ex of exs){ const last = await new Promise((res)=>{ const r = tx('lasts').get(ex.name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); if (last && last.weight) ex.weight = last.weight; } return exs; }
+    async function updateLastsFromWorkout(w){ await open(); const entries = []; (w.exercises||[]).forEach(ex=>{ const used = ex.weight || (ex.sets||[]).map(s=>s.weight).find(Boolean); const reps = (ex.sets||[]).map(s=> (Number.isFinite(s.reps)? s.reps : null)).filter(v=> v!==null); const rec = { name: ex.name, updatedAt: Date.now() }; if (used) rec.weight = used; if (reps.length) rec.reps = reps; entries.push(rec); }); await Promise.all(entries.map(setLast)); }
+    async function outboxAdd(item){ await open(); return new Promise((res,rej)=>{ const r = tx('outbox','readwrite').add(item); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+    async function outboxAll(){ await open(); return new Promise((res)=>{ const items=[]; const r = tx('outbox').openCursor(); r.onsuccess=e=>{ const c=e.target.result; if(c){ items.push({ id:c.key, ...c.value }); c.continue(); } else res(items); }; r.onerror=()=>res(items); }); }
+    async function outboxRemove(id){ await open(); return new Promise((res)=>{ const r = tx('outbox','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }); }
 
-const state = {
+    // ---- Lisätty: tyhjennä 'lasts' kokonaan, ettei viimeksi tallennettu vaikuta seuraavaan ----
+    async function clearLasts(){ 
+      await open(); 
+      return new Promise((res)=>{ const r = tx('lasts','readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>res(); });
+    }
+
+    return { open, saveWorkout, listWorkouts, getWorkout, getLast, setLast, primeWeightsFor, updateLastsFromWorkout, outboxAdd, outboxAll, outboxRemove, clearLasts };
+  })();
+
+  // ---- Sovellustila ----
+  const state = {
     workout: { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] }
   };
 
@@ -231,6 +237,8 @@ const state = {
     try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (s) Object.assign(state, s); } catch(e){}
   }
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function clearLocal(){ try { localStorage.removeItem(STORAGE_KEY); } catch(e){} }
+
   function fmtSub(ex){ const sets = ex.sets?.length || ex.target || 2; const reps = ex.repRange || '12-14'; return `${sets} sarjaa x ${reps} toistoa`; }
   function pillHtml(ex, set, setIndex, exIndex){
     const range = ex.repRange || '12-14';
@@ -348,24 +356,80 @@ const state = {
     $('#pillUndo').onclick = ()=>{ delete set.reps; ex.sets[si] = set; save(); render(); dlg.close(); };
   }
 
-  // Header actions
-  document.getElementById('newWorkoutBtn')?.addEventListener('click', ()=> openTemplateChooser());
-  $('#newWorkoutBtn').addEventListener('click', ()=>{ // openTemplateChooser(); // removed: not defined in this build });
-  $('#addExerciseBtn').addEventListener('click', addExercise);
-  $('#warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
-
-  // Boot
-  load();
-  if (!state.workout.exercises.length){
-    // openTemplateChooser(); // removed: not defined in this build
-    state.workout.exercises = [
-      { name:'Pystypunnerrus laitteessa', repRange:'12-14', rest:90, weight:'40', sets:[{},{},] },
-      { name:'Takakyykky', repRange:'9', rest:90, weight:'55', sets:[{},{},] },
-      { name:'Penkkipunnerrus tangolla', repRange:'9', rest:90, weight:'57.5', sets:[{},{},] }
-    ];
+  // ---------- UUSI: treenin valinta aina alussa ----------
+  function buildWorkoutFromTemplate(name){
+    const dateIso = new Date().toISOString();
+    if (name === 'Custom'){
+      return { name: 'Harjoitus', date: dateIso, exercises: [] };
+    }
+    const base = (TEMPLATES[name] || []).map(ex => JSON.parse(JSON.stringify(ex)));
+    return { name, date: dateIso, exercises: base };
   }
-  state.workout.name = 'Harjoitus 2';
-  save(); render();
+
+  function openTemplateChooser(){
+    const dlg = $('#templateDialog');
+    dlg.showModal();
+    dlg.querySelectorAll('[data-template]').forEach(btn=>{
+      btn.onclick = ()=>{
+        // Aina uuden treenin alkaessa tyhjennetään paikallinen tila
+        clearLocal();
+        // Luodaan täysin tuore workout valitusta templatesta
+        state.workout = buildWorkoutFromTemplate(btn.dataset.template);
+        save();
+        render();
+        dlg.close();
+      };
+    });
+    $('#tplClose').onclick = ()=> dlg.close();
+  }
+
+  // ---------- Header + CTA ----------
+  document.getElementById('newWorkoutBtn')?.addEventListener('click', openTemplateChooser);
+  document.getElementById('addExerciseBtn').addEventListener('click', addExercise);
+  document.getElementById('warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
+
+  // ---------- TALLENNUS: nollaa kaiken tallennuksen jälkeen ----------
+  document.getElementById('saveWorkoutBtn').addEventListener('click', async ()=>{
+    // Koosta payload nykyisestä tilasta
+    const payload = {
+      ...state.workout,
+      savedAt: Date.now()
+    };
+
+    try {
+      // Tallenna historiaan (säilyy)
+      await DB.saveWorkout(payload);
+      // Ei päivitetä "lasts"-prefillejä tulevaan — päinvastoin tyhjennetään:
+      await DB.clearLasts();
+    } catch(e){
+      console.error(e);
+      alert('Tallennus epäonnistui.');
+      return;
+    }
+
+    // Tyhjennä paikallinen tila, ettei mikään viimeksi tallennettu jää näkyviin
+    clearLocal();
+    // Aloita puhtaalta pöydältä
+    state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
+    render();
+
+    // Kysy heti uusi treeni
+    openTemplateChooser();
+    alert('Treeni tallennettu. Aloitetaan uusi treeni.');
+  });
+
+  // ---------- Käynnistys ----------
+  // Huom: Aina sivun avautuessa kysytään treeni ja varmistetaan, ettei vanha tila jää näkyviin
+  window.addEventListener('DOMContentLoaded', ()=>{
+    // Älä lataa vanhaa sessiotilaa -> varmistetaan puhdas aloitus
+    clearLocal();
+    state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
+    render();
+    openTemplateChooser();
+  });
+
+  // ===== Alla olemassa olevat historia- yms. koukut voidaan myöhemmin liittää =====
+  // (Historia-UI:n eventit eivät ole osa pyydettyä muutosta, joten niitä ei muutettu.)
 })();
 
 // Service worker
