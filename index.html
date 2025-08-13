@@ -28,20 +28,12 @@
       background: rgba(255,255,255,0.9);
       border-bottom: 1px solid var(--border);
     }
-    .toolbar {
-      display: flex; align-items: center; gap: 8px; padding: 12px 14px; max-width: 820px; margin: 0 auto;
-    }
+    .toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 14px; max-width: 820px; margin: 0 auto; }
     .back { font-size: 20px; background:none; border:0; }
     .title { flex: 1; text-align: center; font-weight: 800; }
     .container { max-width: 820px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      background: #111; color: #fff; padding: 12px 16px; border-radius: 14px; border: 0; font-weight: 600;
-    }
-    .card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 22px; padding: 14px;
-      box-shadow: var(--shadow);
-    }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #111; color: #fff; padding: 12px 16px; border-radius: 14px; border: 0; font-weight: 600; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 22px; padding: 14px; box-shadow: var(--shadow); }
     .ex-header { display: grid; grid-template-columns: 1fr auto; align-items: center; }
     .ex-name { font-size: 20px; font-weight: 800; margin: 0 0 6px 0; }
     .ex-sub { color: var(--muted); font-size: 14px; }
@@ -57,16 +49,11 @@
     .pill.done { background: var(--pill-done); color: #001; }
     .cta-row { display:flex; align-items:center; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 12px; }
     .timer { font-variant-numeric: tabular-nums; }
-    dialog {
-      width: min(92vw, 420px);
-      border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow);
-    }
+    dialog { width: min(92vw, 480px); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
     dialog::backdrop { background: rgba(0,0,0,0.25); backdrop-filter: blur(2px); }
     .grid { display:grid; gap:10px; }
     .grid.two { grid-template-columns: 1fr 1fr; }
-    input, select {
-      width: 100%; padding: 12px 12px; border-radius: 12px; border: 1px solid var(--border); background:#fff; color:#111; font-size:16px;
-    }
+    input, select { width: 100%; padding: 12px 12px; border-radius: 12px; border: 1px solid var(--border); background:#fff; color:#111; font-size:16px; }
     .row { display:flex; gap:10px; align-items:center; }
     .actions { display:flex; gap:10px; justify-content:flex-end; margin-top: 6px; }
     .link { color: var(--brand); text-decoration: none; }
@@ -120,6 +107,8 @@
       <button class="btn" data-template="Push">Push</button>
       <button class="btn" data-template="Pull">Pull</button>
       <button class="btn" data-template="Legs">Legs</button>
+      <button class="btn" data-template="Treeni1">Treeni 1</button>
+      <button class="btn" data-template="Treeni2">Treeni 2</button>
       <button class="btn" data-template="Custom" style="background:#888;">Mukautettu</button>
     </div>
     <div class="actions">
@@ -166,7 +155,7 @@
   const $$ = s => Array.from(document.querySelectorAll(s));
   const STORAGE_KEY = 'gym-minimal-fi-v2';
 
-  // Workout templates
+  // Workout templates (sis. Treeni1 & Treeni2)
   const TEMPLATES = {
     Push: [
       { name:'Penkkipunnerrus tangolla', repRange:'6-10', rest:120, sets:[{},{},{}] },
@@ -188,6 +177,24 @@
       { name:'Reidenkoukistus', repRange:'12-15', rest:60, sets:[{},{},{}] },
       { name:'Reidenojennus', repRange:'12-15', rest:60, sets:[{},{},{}] },
       { name:'Pohjenousut', repRange:'10-15', rest:60, sets:[{},{},{}] }
+    ],
+    Treeni1: [
+      { name:'Trapbar maastaveto', repRange:'5-8', rest:180, sets:[{},{},{}] },
+      { name:'Vinopenkki smithissä', repRange:'8-12', rest:90, sets:[{},{},{}] },
+      { name:'Leuanveto', repRange:'6-10', rest:120, sets:[{},{},{}] },
+      { name:'Polvenojennus', repRange:'12-15', rest:60, sets:[{},{},{}] },
+      { name:'Vipunostot laitteessa', repRange:'12-15', rest:60, sets:[{},{},{}] },
+      { name:'Pushdown köydellä', repRange:'10-15', rest:60, sets:[{},{},{}] },
+      { name:'Hauiskääntö vinopenkissä', repRange:'8-12', rest:60, sets:[{},{},{}] }
+    ],
+    Treeni2: [
+      { name:'Pystypunnerrus laitteessa', repRange:'8-12', rest:90, sets:[{},{},{}] },
+      { name:'Takakyykky', repRange:'5-8', rest:120, sets:[{},{},{}] },
+      { name:'Penkkipunnerrus tangolla', repRange:'6-10', rest:120, sets:[{},{},{}] },
+      { name:'Alatalja v-kahvalla', repRange:'8-12', rest:90, sets:[{},{},{}] },
+      { name:'Hauiskääntö laitteessa', repRange:'8-12', rest:60, sets:[{},{},{}] },
+      { name:'Ojentajalaite', repRange:'10-15', rest:60, sets:[{},{},{}] },
+      { name:'Polven koukistus', repRange:'12-15', rest:60, sets:[{},{},{}] }
     ]
   };
 
@@ -213,32 +220,48 @@
     async function getWorkout(id){ await open(); return new Promise((res)=>{ const r=tx('workouts').get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
     async function getLast(name){ await open(); return new Promise((res)=>{ const r = tx('lasts').get(name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); }
     async function setLast(rec){ await open(); return new Promise((res, rej)=>{ const r = tx('lasts','readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
-    async function primeWeightsFor(exs){ await open(); for (const ex of exs){ const last = await new Promise((res)=>{ const r = tx('lasts').get(ex.name); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }); if (last && last.weight) ex.weight = last.weight; } return exs; }
-    async function updateLastsFromWorkout(w){ await open(); const entries = []; (w.exercises||[]).forEach(ex=>{ const used = ex.weight || (ex.sets||[]).map(s=>s.weight).find(Boolean); const reps = (ex.sets||[]).map(s=> (Number.isFinite(s.reps)? s.reps : null)).filter(v=> v!==null); const rec = { name: ex.name, updatedAt: Date.now() }; if (used) rec.weight = used; if (reps.length) rec.reps = reps; entries.push(rec); }); await Promise.all(entries.map(setLast)); }
+    async function primeWeightsFor(exs){
+      await open();
+      for (const ex of exs){
+        const last = await new Promise((res)=>{
+          const r = tx('lasts').get(ex.name);
+          r.onsuccess=()=>res(r.result);
+          r.onerror =()=>res(null);
+        });
+        if (last && last.weight) ex.weight = last.weight;
+      }
+      return exs;
+    }
+    async function updateLastsFromWorkout(w){
+      await open();
+      const entries = [];
+      (w.exercises||[]).forEach(ex=>{
+        const used = ex.weight || (ex.sets||[]).map(s=>s.weight).find(Boolean);
+        const reps = (ex.sets||[]).map(s=> (Number.isFinite(s.reps)? s.reps : null)).filter(v=> v!==null);
+        const rec = { name: ex.name, updatedAt: Date.now() };
+        if (used) rec.weight = used;
+        if (reps.length) rec.reps = reps;
+        entries.push(rec);
+      });
+      await Promise.all(entries.map(setLast));
+    }
     async function outboxAdd(item){ await open(); return new Promise((res,rej)=>{ const r = tx('outbox','readwrite').add(item); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
     async function outboxAll(){ await open(); return new Promise((res)=>{ const items=[]; const r = tx('outbox').openCursor(); r.onsuccess=e=>{ const c=e.target.result; if(c){ items.push({ id:c.key, ...c.value }); c.continue(); } else res(items); }; r.onerror=()=>res(items); }); }
     async function outboxRemove(id){ await open(); return new Promise((res)=>{ const r = tx('outbox','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }); }
-
-    // ---- Lisätty: tyhjennä 'lasts' kokonaan, ettei viimeksi tallennettu vaikuta seuraavaan ----
-    async function clearLasts(){ 
-      await open(); 
-      return new Promise((res)=>{ const r = tx('lasts','readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>res(); });
-    }
-
-    return { open, saveWorkout, listWorkouts, getWorkout, getLast, setLast, primeWeightsFor, updateLastsFromWorkout, outboxAdd, outboxAll, outboxRemove, clearLasts };
+    return { open, saveWorkout, listWorkouts, getWorkout, getLast, setLast, primeWeightsFor, updateLastsFromWorkout, outboxAdd, outboxAll, outboxRemove };
   })();
 
-  // ---- Sovellustila ----
+  // ---- Sovellustila + storage ----
   const state = {
     workout: { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] }
   };
-
   function load(){
-    try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (s) Object.assign(state, s); } catch(e){}
+    try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (s && s.workout) Object.assign(state, s); } catch(e){}
   }
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   function clearLocal(){ try { localStorage.removeItem(STORAGE_KEY); } catch(e){} }
 
+  // ---- UI apurit ----
   function fmtSub(ex){ const sets = ex.sets?.length || ex.target || 2; const reps = ex.repRange || '12-14'; return `${sets} sarjaa x ${reps} toistoa`; }
   function pillHtml(ex, set, setIndex, exIndex){
     const range = ex.repRange || '12-14';
@@ -251,7 +274,6 @@
       <div>${main}${small?`<small>${small}</small>`:''}</div>
     </button>`;
   }
-
   function exCard(ex, idx){
     const pills = (ex.sets||[]).map((set,i)=> pillHtml(ex,set,i,idx)).join('');
     return `<article class="card" data-i="${idx}">
@@ -269,11 +291,10 @@
       </div>
     </article>`;
   }
-
   function render(){
     $('#headerTitle').textContent = state.workout.name || 'Harjoitus';
     const list = $('#exerciseList');
-    list.innerHTML = state.workout.exercises.map(exCard).join('');
+    list.innerHTML = (state.workout.exercises||[]).map(exCard).join('');
     // bind edit
     $$('.edit').forEach(btn => btn.addEventListener('click', ()=>{
       const i = parseInt(btn.closest('[data-i]').dataset.i);
@@ -287,12 +308,12 @@
     // rest
     $$('.rest').forEach(a => a.addEventListener('click',(e)=>{ e.preventDefault(); startRest(parseInt(a.dataset.i)); }));
   }
-
   function addExercise(){
-    const ex = { name:'Uusi liike', target:2, repRange:'12-14', rest:90, weight: '', sets:[{},{ }] };
+    const ex = { name:'Uusi liike', target:2, repRange:'12-14', rest:90, weight: '', sets:[{},{}] };
     state.workout.exercises.push(ex); save(); render();
   }
 
+  // ---- Editor ----
   function openEditor(i){
     const ex = state.workout.exercises[i];
     $('#editTitle').textContent = ex.name || 'Liike';
@@ -319,7 +340,7 @@
     $('#closeEdit').onclick = ()=> dlg.close();
   }
 
-  // Per-exercise rest timers
+  // ---- Lepoajastin ----
   const ints = {};
   function startRest(i){
     const ex = state.workout.exercises[i];
@@ -337,7 +358,7 @@
     tick(); ints[i] = setInterval(tick, 250);
   }
 
-  // Pill picker
+  // ---- Pill picker ----
   let curEx = -1, curSet = -1, curVal = 12;
   function openPill(exi, si){
     curEx = exi; curSet = si;
@@ -356,86 +377,164 @@
     $('#pillUndo').onclick = ()=>{ delete set.reps; ex.sets[si] = set; save(); render(); dlg.close(); };
   }
 
-  // ---------- UUSI: treenin valinta aina alussa ----------
+  // ---- Treenityypin valinta (oletuspainot 'lasts' mukaan) ----
   function buildWorkoutFromTemplate(name){
     const dateIso = new Date().toISOString();
-    if (name === 'Custom'){
-      return { name: 'Harjoitus', date: dateIso, exercises: [] };
-    }
+    if (name === 'Custom'){ return { name: 'Harjoitus', date: dateIso, exercises: [] }; }
     const base = (TEMPLATES[name] || []).map(ex => JSON.parse(JSON.stringify(ex)));
     return { name, date: dateIso, exercises: base };
   }
+  // Pelkkä avaaja – sidonnat tehdään bootissa kerran
+  function openTemplateChooser(){ document.getElementById('templateDialog').showModal(); }
 
-  function openTemplateChooser(){
-    const dlg = $('#templateDialog');
+  // ---- Historia ----
+  async function openHistory(){
+    const dlg = $('#historyDialog');
+    const list = $('#historyList');
+    list.innerHTML = '<div class="muted">Ladataan…</div>';
+    const items = await DB.listWorkouts();
+    if (!items.length){
+      list.innerHTML = '<div class="muted">Ei vielä tallennettuja treenejä.</div>';
+    } else {
+      list.innerHTML = items.map(w=>{
+        const d = new Date(w.savedAt || w.date || Date.now());
+        const dt = d.toLocaleString('fi-FI');
+        const exCount = (w.exercises||[]).length;
+        return `<button class="btn" data-id="${w.id}" style="justify-content:space-between;">
+          <span>${w.name || 'Harjoitus'}</span>
+          <span style="font-weight:400; opacity:.8">${dt} · ${exCount} liikettä</span>
+        </button>`;
+      }).join('');
+      // Guardi: jos tietue puuttuu
+      list.querySelectorAll('[data-id]').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          const id = Number(b.dataset.id);
+          const rec = await DB.getWorkout(id);
+          if (!rec) { alert('Tietuetta ei löytynyt.'); return; }
+          showHistoryDetail(rec);
+          dlg.close();
+        });
+      });
+    }
+    $('#histClose').onclick = ()=> dlg.close();
+    $('#loadCloudBtn').onclick = ()=> alert('Pilvihaku ei ole vielä käytössä.');
     dlg.showModal();
-    dlg.querySelectorAll('[data-template]').forEach(btn=>{
-      btn.onclick = ()=>{
-        // Aina uuden treenin alkaessa tyhjennetään paikallinen tila
-        clearLocal();
-        // Luodaan täysin tuore workout valitusta templatesta
-        state.workout = buildWorkoutFromTemplate(btn.dataset.template);
-        save();
-        render();
-        dlg.close();
-      };
-    });
-    $('#tplClose').onclick = ()=> dlg.close();
   }
 
-  // ---------- Header + CTA ----------
-  document.getElementById('newWorkoutBtn')?.addEventListener('click', openTemplateChooser);
-  document.getElementById('addExerciseBtn').addEventListener('click', addExercise);
-  document.getElementById('warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
+  function showHistoryDetail(w){
+    const dlg = $('#historyDetailDialog');
+    const d = new Date(w.savedAt || w.date || Date.now());
+    $('#histDetailTitle').textContent = `${w.name || 'Harjoitus'} – ${d.toLocaleString('fi-FI')}`;
+    const body = $('#histDetailBody');
+    body.innerHTML = (w.exercises||[]).map(ex=>{
+      const sets = (ex.sets||[]).map((s,i)=>`Sarja ${i+1}: ${[s.weight?''+s.weight+'kg':null, Number.isFinite(s.reps)?s.reps+' toistoa':null].filter(Boolean).join(', ')}`).join(' · ');
+      return `<div class="card">
+        <div class="ex-name" style="margin:0;">${ex.name}</div>
+        <div class="ex-sub">${ex.repRange || ''} ${ex.weight?('· '+ex.weight+'kg'):''}</div>
+        <div class="muted" style="margin-top:6px;">${sets || '—'}</div>
+      </div>`;
+    }).join('') || '<div class="muted">Ei liikkeitä</div>';
 
-  // ---------- TALLENNUS: nollaa kaiken tallennuksen jälkeen ----------
-  document.getElementById('saveWorkoutBtn').addEventListener('click', async ()=>{
-    // Koosta payload nykyisestä tilasta
-    const payload = {
-      ...state.workout,
-      savedAt: Date.now()
+    // CSV
+    const rows = [['Päivä','Treeni','Liike','Sarja','Paino (kg)','Toistot']];
+    (w.exercises||[]).forEach(ex=>{
+      (ex.sets||[]).forEach((s,i)=>{
+        rows.push([
+          d.toISOString(),
+          w.name||'Harjoitus',
+          ex.name||'',
+          i+1,
+          s.weight ?? ex.weight ?? '',
+          Number.isFinite(s.reps) ? s.reps : ''
+        ]);
+      });
+    });
+    const csv = rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = $('#histCsvBtn');
+    a.href = url;
+    a.download = `treeni-${d.toISOString().slice(0,10)}.csv`;
+
+    $('#histDetailClose').onclick = ()=> {
+      URL.revokeObjectURL(url);
+      dlg.close();
     };
+    dlg.showModal();
+  }
 
+  // ---- Header + CTA ----
+  $('#newWorkoutBtn')?.addEventListener('click', openTemplateChooser);
+  $('#historyBtn')?.addEventListener('click', openHistory);
+  $('#addExerciseBtn').addEventListener('click', addExercise);
+  $('#warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
+
+  // ---- TALLENNUS: historiaan, päivitä lasts, nollaa UI vasta tallennuksen jälkeen ----
+  document.getElementById('saveWorkoutBtn').addEventListener('click', async ()=>{
+    const payload = { ...state.workout, savedAt: Date.now() };
     try {
-      // Tallenna historiaan (säilyy)
       await DB.saveWorkout(payload);
-      // Ei päivitetä "lasts"-prefillejä tulevaan — päinvastoin tyhjennetään:
-      await DB.clearLasts();
+      await DB.updateLastsFromWorkout(payload);
     } catch(e){
       console.error(e);
       alert('Tallennus epäonnistui.');
       return;
     }
-
-    // Tyhjennä paikallinen tila, ettei mikään viimeksi tallennettu jää näkyviin
-    clearLocal();
-    // Aloita puhtaalta pöydältä
-    state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
-    render();
-
-    // Kysy heti uusi treeni
-    openTemplateChooser();
-    alert('Treeni tallennettu. Aloitetaan uusi treeni.');
-  });
-
-  // ---------- Käynnistys ----------
-  // Huom: Aina sivun avautuessa kysytään treeni ja varmistetaan, ettei vanha tila jää näkyviin
-  window.addEventListener('DOMContentLoaded', ()=>{
-    // Älä lataa vanhaa sessiotilaa -> varmistetaan puhdas aloitus
     clearLocal();
     state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
     render();
+    alert('Treeni tallennettu.');
     openTemplateChooser();
   });
 
-  // ===== Alla olemassa olevat historia- yms. koukut voidaan myöhemmin liittää =====
-  // (Historia-UI:n eventit eivät ole osa pyydettyä muutosta, joten niitä ei muutettu.)
+  // ---- BOOT ----
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    // Sido template-dialogin napit KERRAN
+    const tplDlg = document.getElementById('templateDialog');
+    tplDlg.querySelectorAll('[data-template]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const w = buildWorkoutFromTemplate(btn.dataset.template);
+        await DB.primeWeightsFor(w.exercises);
+        state.workout = w;
+        save(); render();
+        tplDlg.close();
+      });
+    });
+    document.getElementById('tplClose').addEventListener('click', ()=> tplDlg.close());
+
+    // Palauta keskeneräinen treeni jos on
+    load();
+    if (!state.workout || !Array.isArray(state.workout.exercises)) {
+      state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
+    }
+    render();
+    if (!state.workout.exercises.length) {
+      openTemplateChooser();
+    }
+  });
 })();
 
-// Service worker
+// Service worker – rekisteröi ja aktivoi heti uusi versio
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./service-worker.js');
+    navigator.serviceWorker.register('./service-worker.js').then(reg=>{
+      if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+      reg.addEventListener('updatefound', ()=>{
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', ()=>{
+          if (sw.state === 'installed' && reg.waiting) {
+            reg.waiting.postMessage('SKIP_WAITING');
+          }
+        });
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+        if (!window.__reloadedBySW) {
+          window.__reloadedBySW = true;
+          window.location.reload();
+        }
+      });
+    });
   });
 }
 </script>
