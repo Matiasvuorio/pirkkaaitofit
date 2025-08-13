@@ -32,12 +32,14 @@
     .back { font-size: 20px; background:none; border:0; }
     .title { flex: 1; text-align: center; font-weight: 800; }
     .container { max-width: 820px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #111; color: #fff; padding: 12px 16px; border-radius: 14px; border: 0; font-weight: 600; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #111; color: #fff; padding: 12px 16px; border-radius: 14px; border: 0; font-weight: 600; cursor:pointer; }
+    .btn.danger { background:#ff3b30; }
+    .btn.muted { background:#888; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 22px; padding: 14px; box-shadow: var(--shadow); }
     .ex-header { display: grid; grid-template-columns: 1fr auto; align-items: center; }
     .ex-name { font-size: 20px; font-weight: 800; margin: 0 0 6px 0; }
     .ex-sub { color: var(--muted); font-size: 14px; }
-    .ex-pills { display: flex; gap: 12px; padding-top: 10px; }
+    .ex-pills { display: flex; gap: 12px; padding-top: 10px; flex-wrap:wrap; }
     .pill {
       display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
       min-width: 80px; height: 70px; background: var(--pill-bg); color: var(--pill-text);
@@ -61,6 +63,7 @@
     .pill-picker { display:flex; align-items:center; gap:10px; justify-content:center; }
     .picker-btn { width:44px; height:44px; border-radius:12px; border:1px solid var(--border); background:#fff; font-size:20px; }
     .rep-out { min-width:56px; text-align:center; font-size:22px; font-weight:800; }
+    .stack { display:grid; gap:10px; }
   </style>
 </head>
 <body>
@@ -75,8 +78,13 @@
   <main class="container">
     <button class="btn" id="warmupBtn" style="border-radius:18px;">Lämmittelyohjeet</button>
     <section id="exerciseList" class="grid"></section>
-    <button class="btn" id="addExerciseBtn" style="border-radius:18px;">+ Lisää liike</button>
-    <button class="btn" id="saveWorkoutBtn" style="border-radius:18px; background:#0f62fe;">Tallenna treeni</button>
+
+    <div class="stack">
+      <button class="btn" id="addExerciseBtn" style="border-radius:18px;">+ Lisää liike</button>
+      <button class="btn" id="saveWorkoutBtn" style="border-radius:18px; background:#0f62fe;">Tallenna treeni</button>
+      <!-- UUSI: tyhjennä tämän treenin tiedot -->
+      <button class="btn muted" id="resetWorkoutBtn" style="border-radius:18px;">Tyhjennä tämä treeni ja palaa valintaan</button>
+    </div>
   </main>
 
   <!-- Edit exercise -->
@@ -94,8 +102,8 @@
       </div>
     </div>
     <div class="actions">
-      <button id="deleteEx" class="btn" style="background:#ff3b30;">Poista</button>
-      <button id="closeEdit" class="btn" style="background:#888;">Sulje</button>
+      <button id="deleteEx" class="btn danger">Poista</button>
+      <button id="closeEdit" class="btn muted">Sulje</button>
       <button id="saveEdit" class="btn">Tallenna</button>
     </div>
   </dialog>
@@ -109,10 +117,10 @@
       <button class="btn" data-template="Legs">Legs</button>
       <button class="btn" data-template="Treeni1">Treeni 1</button>
       <button class="btn" data-template="Treeni2">Treeni 2</button>
-      <button class="btn" data-template="Custom" style="background:#888;">Mukautettu</button>
+      <button class="btn muted" data-template="Custom">Mukautettu</button>
     </div>
     <div class="actions">
-      <button id="tplClose" class="btn" style="background:#888;">Sulje</button>
+      <button id="tplClose" class="btn muted">Sulje</button>
     </div>
   </dialog>
 
@@ -120,9 +128,13 @@
   <dialog id="historyDialog">
     <h3 class="ex-name" style="margin:0 0 12px 0;">Historia</h3>
     <div id="historyList" class="grid" style="grid-template-columns:1fr; gap:8px; max-height:50vh; overflow:auto;"></div>
-    <div class="actions">
-      <button id="loadCloudBtn" class="btn">Hae pilvestä</button>
-      <button id="histClose" class="btn" style="background:#888;">Sulje</button>
+    <div class="actions" style="justify-content:space-between;">
+      <!-- UUSI: tyhjennä historia -->
+      <button id="histClearAll" class="btn danger">Tyhjennä historia</button>
+      <div>
+        <button id="loadCloudBtn" class="btn">Hae pilvestä</button>
+        <button id="histClose" class="btn muted">Sulje</button>
+      </div>
     </div>
   </dialog>
 
@@ -132,7 +144,7 @@
     <div id="histDetailBody" style="display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow:auto;"></div>
     <div class="actions">
       <a id="histCsvBtn" class="btn" download="treeni.csv">Vie CSV</a>
-      <button id="histDetailClose" class="btn" style="background:#888;">Sulje</button>
+      <button id="histDetailClose" class="btn muted">Sulje</button>
     </div>
   </dialog>
 
@@ -144,7 +156,7 @@
       <button class="picker-btn" id="plus">+</button>
     </div>
     <div class="actions">
-      <button id="pillUndo" class="btn" style="background:#888;">Tyhjennä</button>
+      <button id="pillUndo" class="btn muted">Tyhjennä</button>
       <button id="pillSave" class="btn">Valmis</button>
     </div>
   </dialog>
@@ -245,10 +257,12 @@
       });
       await Promise.all(entries.map(setLast));
     }
-    async function outboxAdd(item){ await open(); return new Promise((res,rej)=>{ const r = tx('outbox','readwrite').add(item); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-    async function outboxAll(){ await open(); return new Promise((res)=>{ const items=[]; const r = tx('outbox').openCursor(); r.onsuccess=e=>{ const c=e.target.result; if(c){ items.push({ id:c.key, ...c.value }); c.continue(); } else res(items); }; r.onerror=()=>res(items); }); }
-    async function outboxRemove(id){ await open(); return new Promise((res)=>{ const r = tx('outbox','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }); }
-    return { open, saveWorkout, listWorkouts, getWorkout, getLast, setLast, primeWeightsFor, updateLastsFromWorkout, outboxAdd, outboxAll, outboxRemove };
+    // UUSI: tyhjennä kaikki historiatiedot (vain workouts-store)
+    async function clearAllWorkouts(){
+      await open();
+      return new Promise((res)=>{ const r = tx('workouts','readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>res(); });
+    }
+    return { open, saveWorkout, listWorkouts, getWorkout, getLast, setLast, primeWeightsFor, updateLastsFromWorkout, clearAllWorkouts };
   })();
 
   // ---- Sovellustila + storage ----
@@ -365,8 +379,8 @@
     const ex = state.workout.exercises[exi];
     const set = ex.sets[si] || {};
     const defRange = ex.repRange || '12-14';
-    const start = Number.isFinite(set.reps) ? set.reps : parseInt(defRange.split('-')[0])||12;
-    curVal = start;
+    an = Number.isFinite(set.reps) ? set.reps : parseInt(defRange.split('-')[0])||12;
+    curVal = an;
     $('#pillTitle').textContent = (ex.name || 'Liike') + ' – Sarja ' + (si+1);
     $('#repOut').textContent = curVal;
     const dlg = $('#pillDialog');
@@ -384,7 +398,6 @@
     const base = (TEMPLATES[name] || []).map(ex => JSON.parse(JSON.stringify(ex)));
     return { name, date: dateIso, exercises: base };
   }
-  // Pelkkä avaaja – sidonnat tehdään bootissa kerran
   function openTemplateChooser(){ document.getElementById('templateDialog').showModal(); }
 
   // ---- Historia ----
@@ -405,7 +418,6 @@
           <span style="font-weight:400; opacity:.8">${dt} · ${exCount} liikettä</span>
         </button>`;
       }).join('');
-      // Guardi: jos tietue puuttuu
       list.querySelectorAll('[data-id]').forEach(b=>{
         b.addEventListener('click', async ()=>{
           const id = Number(b.dataset.id);
@@ -418,6 +430,15 @@
     }
     $('#histClose').onclick = ()=> dlg.close();
     $('#loadCloudBtn').onclick = ()=> alert('Pilvihaku ei ole vielä käytössä.');
+
+    // UUSI: tyhjennä koko historia tuplavarmistuksella
+    $('#histClearAll').onclick = async ()=>{
+      if (!confirm('Tyhjennetäänkö kaikki historiatiedot?')) return;
+      if (!confirm('VAROITUS: Poisto on pysyvä. Vahvista poistamalla historia.')) return;
+      await DB.clearAllWorkouts();
+      list.innerHTML = '<div class="muted">Historia tyhjennetty.</div>';
+    };
+
     dlg.showModal();
   }
 
@@ -469,7 +490,7 @@
   $('#addExerciseBtn').addEventListener('click', addExercise);
   $('#warmupBtn').addEventListener('click', ()=> alert('Kevyt dynaaminen lämmittely 5–8 min.'));
 
-  // ---- TALLENNUS: historiaan, päivitä lasts, nollaa UI vasta tallennuksen jälkeen ----
+  // ---- Tallennus ----
   document.getElementById('saveWorkoutBtn').addEventListener('click', async ()=>{
     const payload = { ...state.workout, savedAt: Date.now() };
     try {
@@ -487,9 +508,18 @@
     openTemplateChooser();
   });
 
+  // ---- UUSI: Tyhjennä tämän treenin tiedot (EI historiaa) ----
+  document.getElementById('resetWorkoutBtn').addEventListener('click', ()=>{
+    if (!confirm('Tyhjennetäänkö tämän treenin täytetyt tiedot?')) return;
+    clearLocal();
+    state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
+    render();
+    openTemplateChooser();
+  });
+
   // ---- BOOT ----
   window.addEventListener('DOMContentLoaded', async ()=>{
-    // Sido template-dialogin napit KERRAN
+    // Sido template-dialogin napit kerran
     const tplDlg = document.getElementById('templateDialog');
     tplDlg.querySelectorAll('[data-template]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
@@ -502,7 +532,7 @@
     });
     document.getElementById('tplClose').addEventListener('click', ()=> tplDlg.close());
 
-    // Palauta keskeneräinen treeni jos on
+    // Palauta keskeneräinen treeni
     load();
     if (!state.workout || !Array.isArray(state.workout.exercises)) {
       state.workout = { name: 'Harjoitus', date: new Date().toISOString(), exercises: [] };
